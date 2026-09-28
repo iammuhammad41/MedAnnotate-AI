@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: medannotate
+      POSTGRES_USER: medannotate
+      POSTGRES_PASSWORD: medannotate
+    volumes:
+      - medannotate_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medannotate -d medannotate"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      MEDANNOTATE_DATABASE_URL: postgresql+psycopg://medannotate:medannotate@db:5432/medannotate
+      MEDANNOTATE_STORAGE_DIR: /app/data/uploads
+      MEDANNOTATE_ALLOW_DEMO_MODE: "true"
+      MEDANNOTATE_CORS_ORIGINS: http://localhost:5173
+    volumes:
+      - medannotate_uploads:/app/data/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  medannotate_db:
+  medannotate_uploads:
